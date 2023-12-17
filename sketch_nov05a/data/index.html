@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.13/css/all.css"
+        integrity="sha384-DNOHZ68U8hZfKXOrtjWvjxusGo9WQnrNx2sqG0tfsghAvtVlRW3tvkXWZh58N9jp" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"
+        integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <title>ESP32 Smart Gardening</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script type="text/javascript">
+
+        var ws;
+        var chart;
+        var dataLimit = 40; // Số lượng giá trị tối đa trong biểu đồ
+        var temperatureData = []; // Mảng để lưu trữ giá trị nhiệt độ
+        var humidityData = [];
+        var soilData = [];
+        var timeData = []; // Mảng để lưu trữ thời gian
+
+
+        function addDataToChart(chart, label, humidity, soil, temperature) {
+            if (temperatureData.length >= dataLimit) {
+                // Nếu đã đạt tới giới hạn, loại bỏ giá trị đầu tiên
+                temperatureData.shift();
+                soilData.shift();
+                humidityData.shift();
+
+                timeData.shift();
+            }
+
+
+            timeData.push(label);
+            temperatureData.push(temperature);
+            soilData.push(soil);
+            humidityData.push(humidity);
+
+            chart.data.labels = timeData;
+            chart.data.datasets[2].data = temperatureData;
+            chart.data.datasets[0].data = humidityData;
+            chart.data.datasets[1].data = soilData;
+            chart.update();
+        }
+
+        var gateway = `ws://192.168.113.180/ws`;
+        var websocket;
+        window.addEventListener('load', onload);
+
+        function onload(event) {
+            initWebSocket();
+            initChart();
+        }
+
+        function getSensorData() {
+            websocket.send("getValues");
+        }
+
+        function initWebSocket() {
+            console.log('Trying to open a WebSocket connection...');
+            websocket = new WebSocket(gateway);
+            websocket.onopen = onOpen;
+            websocket.onclose = onClose;
+            websocket.onmessage = onMessage;
+        }
+
+        function onOpen(event) {
+            console.log('Connection opened');
+            getSensorData();
+        }
+
+        function onClose(event) {
+            console.log('Connection closed');
+            setTimeout(initWebSocket, 2000);
+        }
+
+        function onMessage(event) {
+            console.log(event.data);
+            var sensorData = JSON.parse(event.data);
+            var temperature = sensorData.temperature.toFixed(2);
+            var humidity = sensorData.humidity.toFixed(2);
+            var soilMoisture = sensorData.soil.toFixed(2);
+            if (sensorData.light.toFixed(0) == 0) {
+                document.getElementById('light').textContent = "Sáng";
+            }
+            else {
+                document.getElementById('light').textContent = "Tối";
+            }
+            document.getElementById('temperature').textContent = sensorData.temperature.toFixed(2) + "°C";
+            document.getElementById('humidity').textContent = sensorData.humidity.toFixed(2) + "%";
+            document.getElementById('soil').textContent = sensorData.soil.toFixed(2) + "%";
+            document.getElementById('toggleButton').textContent = sensorData.pump_status;
+
+            var time = new Date().toLocaleTimeString();
+            addDataToChart(chart, time, sensorData.humidity, sensorData.soil, sensorData.temperature);
+            $.ajax({
+                type: 'POST',
+                data: {
+                    'temperature': temperature,
+                    'humidity': humidity,
+                    'soilMoisture': soilMoisture
+                },
+                url: '/savedata',
+                success: function (response) {
+                    // Xử lý phản hồi từ server
+                    console.log(response);
+                },
+                error: function (error) {
+                    console.log(error);
+                }
+            });
+
+        }
+
+        function initChart() {
+            var ctx = document.getElementById("chart").getContext('2d');
+            var gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            var gradientS = ctx.createLinearGradient(0, 0, 0, 400);
+            var gradientH = ctx.createLinearGradient(0, 0, 0, 300);
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timeData,
+                    datasets: [
+                        {
+                            label: 'Độ ẩm(%)',
+                            backgroundColor: 'rgba(0, 0, 0, 0)',
+                            borderColor: 'rgb(255, 248, 10, 1)', // Thêm 'rgba' và số 1 ở đây
+                            borderWidth: 3,
+                            data: humidityData
+                        },
+                        {
+                            label: 'Độ ẩm đất(%)',
+                            backgroundColor: 'rgba(0, 0, 0, 0)',
+                            borderColor: 'rgb(214, 28, 78, 1)', // Thêm 'rgba' và số 1 ở đây
+                            borderWidth: 3,
+                            data: soilData
+                        },
+                        {
+                            label: 'Nhiệt độ',
+                            backgroundColor: 'rgba(0, 0, 0, 0)',
+                            borderColor: 'rgb(20, 63, 107, 1)',
+                            borderWidth: 3,
+                            data: temperatureData
+                        }
+
+                    ]
+                },
+                options: {
+                    scales: {
+                        yAxes: [
+                            {
+                                display: true,
+                                ticks: {
+                                    beginAtZero: true,
+                                    max: 100
+                                }
+                            }
+                        ]
+                    }
+                }
+            });
+
+        }
+    </script>
+</head>
+
+<body>
+    <header id="main-header" class="py-2 pt-4 text-dark">
+        <div class="container-fluid ">
+            <div class="row justify-content-between">
+                <div class="col-md-6 ml-5">
+                    <h3>Automatic garden</h3>
+                </div>
+                <div class="mr-5 pr-5">
+                    <a href="index"> <button type="button" class="btn btn-info">Chuẩn đoán sâu
+                            bệnh</button></a>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <section class=" py-3">
+        <div class="container-fluid p-0 m-0">
+            <div class="row">
+                <div class="col-8 ml-5">
+                    <div class="row m-0 p-0 rounded mb-2" style="background-color:#fff; border: 1px solid #ddd;
+                    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.1);">
+                        <div class="col ml-4 my-3 p-0">
+                            <div class="card m-2 text-light" style="min-height: 12rem;">
+                                <div class="card-header" align="center"
+                                    style=" background-color:rgb(242, 185, 27) ;border: 1px solid #212529;">
+                                    <dt> Ánh sáng</dt>
+                                </div>
+                                <div class="card-body" align="center" style="border: 1px solid #212529; border-top: 0;">
+
+
+                                    <h1 id="light" class="font-weight-bold mt-3 pt-2" style="color: #212529;">
+                                        Sáng
+                                    </h1>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="col ml-4 my-3 p-0">
+                            <div class="card m-2 text-light" style="min-height: 12rem;">
+                                <div class="card-header" align="center"
+                                    style="background-color:#FF5F15 ;border: 1px solid #212529;">
+                                    <dt>Nhiệt độ</dt>
+                                </div>
+                                <div class="card-body" align="center" style="border: 1px solid #212529; border-top: 0;">
+                                    <!-- <h5 class="card-title"></h5> -->
+
+                                    <h1 id="temperature" class="font-weight-bold mt-3 pt-2" style="color: #212529;">
+                                        100℃
+                                    </h1>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col mx-4 my-3 p-0">
+                            <div class="card m-2 text-light" style="min-height: 12rem; ">
+                                <div class="card-header" align="center"
+                                    style="background-color:#2a5aa2 ;border: 1px solid #212529;">
+                                    <dt>Độ ẩm</dt>
+                                </div>
+                                <div class="card-body" align="center" style="border: 1px solid #212529; border-top: 0;">
+                                    <!-- <h5 class="card-title">Humidity</h5> -->
+
+                                    <h1 id="humidity" class="font-weight-bold mt-3 pt-2 " style="color: #212529;">
+                                        100%
+                                    </h1>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row p-0 mt-3 ">
+                        <div class="col">
+                            <div class="card bg-light" style="min-height: 15rem;; border: 1px solid #ddd;
+                            box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.1);">
+
+                                <div class="card-body pt-4">
+                                    <h5 class="card-title">History</h5>
+                                    <p class="card-text">
+                                        <canvas id="chart" width="400" height="150"></canvas>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <h3
+                        style="margin-top: 8px; padding-top: 10px; padding-bottom: 10px; padding-left: 10px; border: 1px solid rgba(0,0,0,.125); border-radius: .25rem;background-color: #fff;    background-clip: border-box;">
+                        Dự đoán loại rau nên trồng nhất : {{ test_value }}</h3>
+                </div>
+
+                <div class="container col-3 m-0 p-0">
+
+                    <div class="row p-0 m-0 mx-2 py-4 rounded" style="background-color:#fff ; border: 1px solid #ddd;
+                    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.1);">
+                        <div class="col pr-1 ">
+                            <div class="card">
+                                <div class="card-header" style="text-align: center; ">
+                                    <dt>Pump</dt>
+                                </div>
+                                <button id="toggleButton" class="btn btn-info p-3 font-weight-bold"
+                                    style="font-size: 2.5rem;">OFF</button>
+                            </div>
+                        </div>
+                        <div class="col pl-1 ">
+                            <div class="card ">
+                                <div class="card-header" style="text-align: center;">
+                                    <dt>Lamp</dt>
+                                </div>
+                                <button id="toggleButton2" class="btn btn-info p-3 font-weight-bold"
+                                    style="font-size: 2.5rem;background-color: rgb(242, 185, 27);">OFF</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row  m-2 mt-3 rounded" style="background-color:#fff ;border: 1px solid #ddd;
+                    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.1);">
+                        <div class="container">
+                            <div class="mt-3  " align="center">
+                                <div style="font-size: 1.2rem; font-weight: 700;">Chế độ tưới cây
+                                </div>
+
+                            </div>
+                            <div class="row mt-3">
+
+                                <!-- Nút Auto (Checkbox) -->
+                                <div class="col pl-0">
+                                    <div class="form-check" data-toggle="collapse" data-target="#auto">
+                                        <input type="checkbox" class="form-check-input col " id="autoCheckbox"
+                                            style="margin-top: 6px; margin-left: -4.5rem;">
+                                        <label class="form-check-label col ml-2" for="autoCheckbox">Auto</label>
+                                    </div>
+                                </div>
+                                <!-- Nút Cài đặt (Checkbox) -->
+                                <div class="col">
+                                    <div class="form-check" data-toggle="collapse" data-target="#demo">
+                                        <input type="checkbox" class="form-check-input col" id="customCheckbox"
+                                            style="margin-top: 6px; margin-left: -5.5rem;">
+                                        <label class="form-check-label ml-2 " for="customCheckbox">Hẹn giờ</label>
+                                    </div>
+                                </div>
+
+
+                            </div>
+                            <!-- Ô chọn giờ -->
+                            <div class="row collapse" id="demo">
+                                <div class="row container">
+                                    <div class="col mt-4">
+                                        <label for="hourSelect">Giờ bơm:</label>
+                                        <select id="hourSelect" class="form-control">
+                                            <!-- Tạo các tùy chọn cho giờ từ 0 đến 23 bằng JavaScript -->
+                                        </select>
+                                    </div>
+                                    <!-- Ô chọn phút -->
+                                    <div class="col mt-4">
+                                        <label for="minuteSelect">Phút bơm:</label>
+                                        <select id="minuteSelect" class="form-control">
+                                            <!-- Tạo các tùy chọn cho phút từ 0 đến 59 bằng JavaScript -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row container p-0 mx-1">
+                            <!-- Ô nhập giá trị min (Số) -->
+                            <div class="col mt-3">
+                                <label for="minValue">Min:</label>
+                                <input type="number" id="minValue" class="form-control">
+                            </div>
+                            <!-- Ô nhập giá trị max (Số) -->
+                            <div class="col mt-3">
+                                <label for="maxValue">Max:</label>
+                                <input type="number" id="maxValue" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row container mt-4">
+                            <div><button class="btn btn-info w-75 ml-3" id="submitButton">Gửi</button></div>
+                        </div>
+
+                        <div class="col my-4">
+                            <div class=" m-0 text-light rounded" style="min-height: 12rem; ">
+                                <div class="card-header" align="center"
+                                    style="background-color:#138496;border: 1px solid #212529;">
+                                    <dt>Độ ẩm đất</dt>
+                                </div>
+                                <div class="card-body py-5" align="center"
+                                    style=" border: 1px solid #212529; border-top: 0;">
+                                    <h1 id="soil" class="font-weight-bold " style="color: #212529;">
+                                        100%
+                                    </h1>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <script>
+
+
+        // Lấy phần tử có id là "toggleButton"
+        var toggleButton = document.getElementById("toggleButton");
+
+        // Thêm sự kiện cho nút
+        toggleButton.addEventListener("click", function () {
+            if (toggleButton.textContent === "OFF") {
+                toggleButton.textContent = "ON";
+                // Gửi thông điệp tới ESP32 khi nút được bật
+                sendRelayState("ON");
+            } else {
+                toggleButton.textContent = "OFF";
+                // Gửi thông điệp tới ESP32 khi nút được tắt
+                sendRelayState("OFF");
+            }
+
+        });
+
+        function sendRelayState(state) {
+            if (websocket.readyState === WebSocket.OPEN) {
+                var message = '{"setRelayState": {"state": "' + state + '"}}';
+                websocket.send(message);
+            } else {
+                console.error('WebSocket connection is not open.');
+            }
+        }
+
+        document.getElementById("toggleButton2").addEventListener("click", function () {
+            var button = document.getElementById("toggleButton2");
+
+            if (button.textContent === "OFF") {
+                button.textContent = "ON";
+                sendRelayState("LN_LIGHT");
+
+            } else {
+                button.textContent = "OFF";
+                sendRelayState("LF_LIGHT");
+
+
+            }
+        });
+
+        // Tạo các tùy chọn cho giờ từ 0 đến 23
+        var hourSelect = document.getElementById("hourSelect");
+        for (var i = 0; i <= 23; i++) {
+            var option = document.createElement("option");
+            option.value = i;
+            option.text = i;
+            hourSelect.appendChild(option);
+        }
+
+        // Tạo các tùy chọn cho phút từ 0 đến 59
+        var minuteSelect = document.getElementById("minuteSelect");
+        for (var i = 0; i <= 59; i++) {
+            var option = document.createElement("option");
+            option.value = i;
+            option.text = i;
+            minuteSelect.appendChild(option);
+        }
+
+
+        // Wait for the DOM to be ready
+        $(document).ready(function () {
+            // Set Auto checkbox to checked initially
+            $('#autoCheckbox').prop('checked', true);
+
+            // When Custom checkbox is clicked
+            $('#customCheckbox').on('change', function () {
+                if ($(this).prop('checked')) {
+                    // If Custom checkbox is checked, uncheck Auto checkbox 
+                    $('#autoCheckbox').prop('checked', false);
+
+                }
+            });
+
+            // When Auto checkbox is clicked
+            $('#autoCheckbox').on('change', function () {
+                if ($(this).prop('checked')) {
+                    // If Auto checkbox is checked, uncheck Custom checkbox and hide the demo element
+                    $('#customCheckbox').prop('checked', false);
+                    $('#demo').collapse('hide');
+                }
+            });
+            $('#submitButton').on('click', function () {
+                // Check if Auto checkbox is checked
+                if ($('#autoCheckbox').prop('checked')) {
+                    // Get values of min and max
+                    var minVal = $('#minValue').val();
+                    var maxVal = $('#maxValue').val();
+
+                    // Your logic to send min and max values to ESP32
+                    sendMinMaxValues(minVal, maxVal);
+                }
+                else if ($('#customCheckbox').prop('checked')) {
+                    // Get values of min and max
+                    var minVal = $('#minValue').val();
+                    var maxVal = $('#maxValue').val();
+                    var hoursval = $('#hourSelect').val();
+                    var minutesval = $('#minuteSelect').val();
+                    // console.log(minutesval);
+                    // console.log(hoursval);
+                    // Your logic to send min and max values to ESP32
+                    sendTimerValues(minVal, maxVal, hoursval, minutesval);
+                }
+            });
+        });
+        // Function to send min and max values to ESP32
+        function sendMinMaxValues(min, max) {
+            // Check if WebSocket connection is open
+            if (websocket.readyState === WebSocket.OPEN) {
+                // Construct a message with min and max values
+                var message = '{"setMinMaxValues": {"min": "' + min + '", "max": "' + max + '"}}';
+                // Send the message to ESP32
+                websocket.send(message);
+            } else {
+                console.error('WebSocket connection is not open.');
+            }
+        }
+        function sendTimerValues(min, max, hours, minutes) {
+            // Check if WebSocket connection is open
+            if (websocket.readyState === WebSocket.OPEN) {
+                var message = '{"setTimerValues": {"min": "' + min + '", "max": "' + max + '","hours": "' + hours + '", "minutes": "' + minutes + '"}}';
+                websocket.send(message);
+            } else {
+                console.error('WebSocket connection is not open.');
+            }
+        }
+
+
+
+    </script>
+
+</body>
+
+</html>

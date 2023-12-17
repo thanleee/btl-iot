@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "G:/iot"
+		},
+		{
+			"path": "../../../blink/webskiot/data"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "data"
+	}
+}
