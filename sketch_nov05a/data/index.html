@@ -33,7 +33,6 @@
 
         function addDataToChart(chart, label, humidity, soil, temperature) {
             if (temperatureData.length >= dataLimit) {
-                // Nếu đã đạt tới giới hạn, loại bỏ giá trị đầu tiên
                 temperatureData.shift();
                 soilData.shift();
                 humidityData.shift();
@@ -136,14 +135,14 @@
                         {
                             label: 'Độ ẩm(%)',
                             backgroundColor: 'rgba(0, 0, 0, 0)',
-                            borderColor: 'rgb(255, 248, 10, 1)', // Thêm 'rgba' và số 1 ở đây
+                            borderColor: 'rgb(255, 248, 10, 1)',
                             borderWidth: 3,
                             data: humidityData
                         },
                         {
                             label: 'Độ ẩm đất(%)',
                             backgroundColor: 'rgba(0, 0, 0, 0)',
-                            borderColor: 'rgb(214, 28, 78, 1)', // Thêm 'rgba' và số 1 ở đây
+                            borderColor: 'rgb(214, 28, 78, 1)',
                             borderWidth: 3,
                             data: soilData
                         },
@@ -222,8 +221,6 @@
                                     <dt>Nhiệt độ</dt>
                                 </div>
                                 <div class="card-body" align="center" style="border: 1px solid #212529; border-top: 0;">
-                                    <!-- <h5 class="card-title"></h5> -->
-
                                     <h1 id="temperature" class="font-weight-bold mt-3 pt-2" style="color: #212529;">
                                         100℃
                                     </h1>
@@ -237,7 +234,6 @@
                                     <dt>Độ ẩm</dt>
                                 </div>
                                 <div class="card-body" align="center" style="border: 1px solid #212529; border-top: 0;">
-                                    <!-- <h5 class="card-title">Humidity</h5> -->
 
                                     <h1 id="humidity" class="font-weight-bold mt-3 pt-2 " style="color: #212529;">
                                         100%
@@ -330,7 +326,7 @@
                                     <div class="col mt-4">
                                         <label for="minuteSelect">Phút bơm:</label>
                                         <select id="minuteSelect" class="form-control">
-                                            <!-- Tạo các tùy chọn cho phút từ 0 đến 59 bằng JavaScript -->
+
                                         </select>
                                     </div>
                                 </div>
@@ -375,20 +371,13 @@
         </div>
     </section>
     <script>
-
-
-        // Lấy phần tử có id là "toggleButton"
         var toggleButton = document.getElementById("toggleButton");
-
-        // Thêm sự kiện cho nút
         toggleButton.addEventListener("click", function () {
             if (toggleButton.textContent === "OFF") {
                 toggleButton.textContent = "ON";
-                // Gửi thông điệp tới ESP32 khi nút được bật
                 sendRelayState("ON");
             } else {
                 toggleButton.textContent = "OFF";
-                // Gửi thông điệp tới ESP32 khi nút được tắt
                 sendRelayState("OFF");
             }
 
@@ -437,15 +426,10 @@
         }
 
 
-        // Wait for the DOM to be ready
         $(document).ready(function () {
-            // Set Auto checkbox to checked initially
             $('#autoCheckbox').prop('checked', true);
-
-            // When Custom checkbox is clicked
             $('#customCheckbox').on('change', function () {
                 if ($(this).prop('checked')) {
-                    // If Custom checkbox is checked, uncheck Auto checkbox 
                     $('#autoCheckbox').prop('checked', false);
 
                 }
@@ -454,7 +438,6 @@
             // When Auto checkbox is clicked
             $('#autoCheckbox').on('change', function () {
                 if ($(this).prop('checked')) {
-                    // If Auto checkbox is checked, uncheck Custom checkbox and hide the demo element
                     $('#customCheckbox').prop('checked', false);
                     $('#demo').collapse('hide');
                 }
@@ -462,40 +445,33 @@
             $('#submitButton').on('click', function () {
                 // Check if Auto checkbox is checked
                 if ($('#autoCheckbox').prop('checked')) {
-                    // Get values of min and max
                     var minVal = $('#minValue').val();
                     var maxVal = $('#maxValue').val();
 
-                    // Your logic to send min and max values to ESP32
                     sendMinMaxValues(minVal, maxVal);
                 }
                 else if ($('#customCheckbox').prop('checked')) {
-                    // Get values of min and max
                     var minVal = $('#minValue').val();
                     var maxVal = $('#maxValue').val();
                     var hoursval = $('#hourSelect').val();
                     var minutesval = $('#minuteSelect').val();
                     // console.log(minutesval);
                     // console.log(hoursval);
-                    // Your logic to send min and max values to ESP32
                     sendTimerValues(minVal, maxVal, hoursval, minutesval);
                 }
             });
         });
-        // Function to send min and max values to ESP32
+
         function sendMinMaxValues(min, max) {
-            // Check if WebSocket connection is open
             if (websocket.readyState === WebSocket.OPEN) {
-                // Construct a message with min and max values
                 var message = '{"setMinMaxValues": {"min": "' + min + '", "max": "' + max + '"}}';
-                // Send the message to ESP32
                 websocket.send(message);
             } else {
                 console.error('WebSocket connection is not open.');
             }
         }
         function sendTimerValues(min, max, hours, minutes) {
-            // Check if WebSocket connection is open
+
             if (websocket.readyState === WebSocket.OPEN) {
                 var message = '{"setTimerValues": {"min": "' + min + '", "max": "' + max + '","hours": "' + hours + '", "minutes": "' + minutes + '"}}';
                 websocket.send(message);
@@ -503,8 +479,6 @@
                 console.error('WebSocket connection is not open.');
             }
         }
-
-
 
     </script>
 

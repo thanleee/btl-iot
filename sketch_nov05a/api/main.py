@@ -48,13 +48,10 @@ async def index(request: Request):
 
 def read_file_as_image(data) -> np.ndarray:
     try:
-        # Attempt to open the image using PIL
         image = Image.open(BytesIO(data))
-        # Confirm that the image is in a supported format
         if image.format is None:
             print("Unsupported image format.")
             return None
-        # Resize the image to match the expected input shape of the model
         target_size = (256, 256)
         image = image.resize(target_size)
         # Convert the image to a NumPy array

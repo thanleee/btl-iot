@@ -58,7 +58,6 @@ function stopCamera() {
     }
 }
 
-// Thêm hàm để khởi tạo webcam
 function initCamera() {
     $('.file-upload').hide();
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -122,14 +121,9 @@ function captureAndPredict() {
 }
 
 function predictImage() {
-    // Khởi tạo đối tượng FormData
     var formData = new FormData();
-
-    // Thêm dữ liệu hình ảnh vào formData
     var fileInput = $('.file-upload-input')[0];
     formData.append('file', fileInput.files[0]);
-
-    // Gửi dữ liệu lên server
     $.ajax({
         type: 'POST',
         url: '/predict',
@@ -141,10 +135,7 @@ function predictImage() {
             $('#predicted-class').text('Tên bệnh: ' + response.predicted_class);
             $('#confidence').text('Độ chính xác: ' + (response.confidence * 100).toFixed(2) + '%');
 
-            // Hiển thị phần kết quả dự đoán
             $('#prediction-results').show();
-
-            // Ghi log phản hồi đầy đủ vào console
             console.log(response);
         },
         error: function (error) {
@@ -162,14 +153,9 @@ function sendImage(formData) {
         processData: false,
         contentType: false,
         success: function (response) {
-            // Cập nhật HTML để hiển thị kết quả dự đoán
             $('#predicted-class').text('Tên bệnh: ' + response.predicted_class);
             $('#confidence').text('Độ chính xác: ' + (response.confidence * 100).toFixed(2) + '%');
-
-            // Hiển thị phần kết quả dự đoán
             $('#prediction-results').show();
-
-            // Ghi log phản hồi đầy đủ vào console
             console.log(response);
         },
         error: function (error) {
